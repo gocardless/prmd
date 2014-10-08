@@ -7,7 +7,8 @@ module Prmd
   SCHEMAS = [
     "schema.json",
     "hyper-schema.json",
-    "interagent-hyper-schema.json"
+    "interagent-hyper-schema.json",
+    "gocardless-hyper-schema.json"
   ]
 
   def self.verify(schema_data)
