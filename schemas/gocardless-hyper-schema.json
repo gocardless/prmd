@@ -104,6 +104,11 @@
       "not": {
         "required": ["links"]
       },
+      "properties": {
+        "format": {
+          "enum": ["date-time", "email", "hostname", "ipv4", "ipv6", "regex", "uri", "uuid"]
+        }
+      },
       "required": ["description"]
     },
     "resourceLink": {
