@@ -106,7 +106,7 @@
       },
       "properties": {
         "format": {
-          "enum": ["date-time", "email", "hostname", "ipv4", "ipv6", "regex", "uri", "uuid"]
+          "enum": ["date-time", "date", "email", "hostname", "ipv4", "ipv6", "regex", "uri", "uuid"]
         }
       },
       "required": ["description"]
