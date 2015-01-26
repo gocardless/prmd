@@ -1,6 +1,6 @@
 {
-  "$schema": "http://schema.gocardless.io/hyper-schema#",
-  "id": "http://schema.gocardless.io/hyper-schema#",
+  "$schema": "https://developer.gocardless.com/hyper-schema.json#",
+  "id": "https://developer.gocardless.com/hyper-schema.json#",
   "title": "GoCardless JSON Hyper-Schema",
   "allOf": [
     {
