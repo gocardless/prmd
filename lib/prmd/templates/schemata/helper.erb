@@ -1,7 +1,8 @@
 <%-
   def extract_attributes(schema, properties)
     attributes = []
-    properties = properties.sort_by {|k,v| k} # ensure consistent ordering
+
+    _, properties = schema.dereference(properties)
 
     properties.each do |key, value|
       # found a reference to another element:
@@ -43,19 +44,71 @@
           attribute[0] = "#{key}:#{attribute[0]}"
         end
         attributes.concat(nested)
-      # found an array with nested objects
-      elsif value['items'] && value['items']['properties']
-        nested = extract_attributes(schema, value['items']['properties'])
-        nested.each do |attribute|
-          attribute[0] = "#{key}/#{attribute[0]}"
+
+      elsif array_with_nested_objects?(value['items'])
+        if value['items']['properties']
+          nested = extract_attributes(schema, value['items']['properties'])
+          nested.each do |attribute|
+            attribute[0] = "#{key}/#{attribute[0]}"
+          end
+          attributes.concat(nested)
         end
-        attributes.concat(nested)
+        if value['items']['oneOf']
+          value['items']['oneOf'].each_with_index do |oneof, index|
+          ref,  oneof_definition = schema.dereference(oneof)
+          oneof_name = ref ? ref.split('/').last : index
+          nested = extract_attributes(schema, oneof_definition['properties'])
+          nested.each do |attribute|
+            attribute[0] = "#{key}/[#{oneof_name.upcase}].#{attribute[0]}"
+          end
+          attributes.concat(nested)
+        end
+      end
+
       # just a regular attribute
       else
         attributes << build_attribute(schema, key, value)
       end
     end
+    attributes.map! { |key, type, description, example|
+      if example.nil? && Prmd::DefaultExamples.key?(type)
+        example = "`%s`" % Prmd::DefaultExamples[type].to_json
+      end
+      [key, type, description, example]
+    }
     return attributes
+  end
+
+  def extract_schemata_refs(schema, properties)
+    ret = []
+    properties.each do |_, value|
+      ref, value = schema.dereference(value)
+      if value['properties']
+        refs = extract_schemata_refs(schema, value['properties'])
+      elsif value['items'] && value['items']['properties']
+        refs = extract_schemata_refs(schema, value['items']['properties'])
+      else
+        refs = [ref]
+      end
+      if value.has_key?('type') && value['type'].include?('null') && (value.has_key?('items') || value.has_key?('properties'))
+        # A nullable object usually isn't a reference to another schema. It's
+        # either not a reference at all, or it's a reference within the same
+        # schema. Instead, the definition of the nullable object might contain
+        # references to specific properties.
+        #
+        # If all properties refer to the same schema, we'll use that as the
+        # reference. This might even overwrite an actual, intra-schema
+        # reference.
+
+        l = refs.map {|v| v && v.split("/")[0..2]}
+        if l.uniq.size == 1 && l[0] != nil
+          ref = l[0].join("/")
+        end
+        ret << ref
+      end
+      ret.concat(refs)
+    end
+    ret
   end
 
   def build_attribute(schema, key, value)
@@ -86,14 +139,32 @@
       description += "<br/> **pattern:** <code>#{value['pattern'].gsub /\|/, '&#124;'}</code>"
     end
 
+    if value['minLength'] || value['maxLength']
+      description += "<br/> **Length:** `"
+      if value['minLength']
+        description += "#{value['minLength'].to_json}"
+      end
+      unless value['minLength'] == value['maxLength']
+        if value['maxLength']
+          unless value['minLength']
+            description += "0"
+          end
+          description += "..#{value['maxLength'].to_json}"
+        else
+          description += "..∞"
+        end
+      end
+      description += "`"
+    end
+
     if value.has_key?('example')
       example = if value['example'].is_a?(Hash) && value['example'].has_key?('oneOf')
         value['example']['oneOf'].map { |e| "`#{e.to_json}`" }.join(" or ")
       else
         "`#{value['example'].to_json}`"
       end
-    elsif value['type'] == ['array'] && value.has_key?('items')
-      example = "`#{schema.schema_value_example(value)}`"
+    elsif (value['type'] == ['array'] && value.has_key?('items')) || value.has_key?('enum')
+      example = "`#{schema.schema_value_example(value).to_json}`"
     elsif value['type'].include?('null')
       example = "`null`"
     end
@@ -119,5 +190,10 @@
         '{' + ref_resource + '_' + identity_key.split('/').last + '}'
       end
     end
+  end
+
+  def array_with_nested_objects?(items)
+    return unless items
+    items['properties'] || items['oneOf']
   end
 %>

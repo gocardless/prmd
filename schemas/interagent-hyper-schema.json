@@ -11,6 +11,9 @@
         "identity": {
             "anyOf": [
                 {
+                    "$ref": "#/definitions/ref"
+                },
+                {
                     "additionalProperties": false,
                     "properties": {
                         "anyOf": {
@@ -63,7 +66,7 @@
                 },
                 "properties": {
                     "patternProperties": {
-                        "^[a-z][a-z_]*[a-z]$": {
+                        "^[a-z][a-zA-Z_]*[a-zA-Z]$": {
                             "$ref": "#/definitions/resourceProperty"
                         }
                     },
@@ -104,18 +107,23 @@
         "resourceLink": {
             "properties": {
                 "href": {
-                    "pattern": "^(/([a-z][a-z\\-]*[a-z]|\\{\\(.*\\)\\}))+$"
+                    "pattern": "^(\/((?!-|_)[a-z0-9_\\-]+(?<!-|_)|\\{\\(.*\\)\\}))+$"
                 },
                 "schema": {
                     "anyOf": [
                         {
-                            "required": ["properties"]
+                            "$ref": "#/definitions/ref"
                         },
                         {
-                            "required": ["patternProperties"]
+                            "required": ["items", "type"]
+                        },
+                        {
+                            "required": ["properties", "type"]
+                        },
+                        {
+                            "required": ["patternProperties", "type"]
                         }
-                    ],
-                    "required": ["type"]
+                    ]
                 }
             },
             "required": ["description", "href", "method", "rel", "title"]
